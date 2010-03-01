@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<package xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0         http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd" version="2.0">
+  <name>PhpRedis</name>
+  <channel>pear.php.net</channel>
+  <summary>API for communicating with Redis database.</summary>
+  <description>This extension provides an API for communicating with Redis database, a persistent key-value database with built-in net interface written in ANSI-C for Posix systems.</description>
+  <lead>
+    <name>N Bouafif</name>
+    <user>n.bouafif</user>
+    <email>n.bouafif@owlient.eu</email>
+    <active>yes</active>
+  </lead>
+  <lead>
+    <name>N Favre-Felix@</name>
+    <user>n.favre-felix@</user>
+    <email>n.favre-felix@owlient.eu</email>
+    <active>yes</active>
+  </lead>
+  <date>2010-03-01</date>
+  <time>13:22:42</time>
+  <version>
+    <release>1.1.0</release>
+    <api>1.0.0</api>
+  </version>
+  <stability>
+    <release>alpha</release>
+    <api>alpha</api>
+  </stability>
+  <license uri="http://www.opensource.org/licenses/php-license.php">PHP</license>
+  <notes>Initial release.</notes>
+  <contents>
+    <dir name="/">
+      <file name="CREDITS" role="doc" md5sum="1fde1c18da2562bfb53ea9e9a388f969"/>
+      <file name="README.markdown" role="doc" md5sum="eaff65743988b1a2bce1e7d2d565dad6"/>
+      <file name="config.m4" role="src" md5sum="6a1366e1d69122382c4231d7a86be666"/>
+      <file name="debian.control" role="src" md5sum="d4de285252bf3b4d3519622ec373bbb0"/>
+      <file name="mkdeb-apache2.sh" role="src" md5sum="c831cc843e4451bdbd15f211340e4fba"/>
+      <file name="php_redis.h" role="src" md5sum="21176ecafe88e2f320d6a0e401a67407"/>
+      <file name="redis.c" role="src" md5sum="e07a86b830bf099128799802a3f9981e"/>
+      <dir name="tests">
+        <file name="TestRedis.php" role="test" md5sum="26d05563d9b5f89e0c05047bd03cd8e2"/>
+        <file name="executeTests.sh" role="test" md5sum="ce20598b61888cb90e1f445f7491f316"/>
+      </dir>
+    </dir>
+  </contents>
+  <dependencies>
+    <required>
+      <php>
+        <min>5.0</min>
+      </php>
+      <pearinstaller>
+        <min>1.4.0</min>
+      </pearinstaller>
+    </required>
+  </dependencies>
+  <providesextension>redis</providesextension>
+  <extsrcrelease/>
+</package>
