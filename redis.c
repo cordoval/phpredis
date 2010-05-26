@@ -2081,7 +2081,7 @@ PHPAPI void generic_sort_cmd(INTERNAL_FUNCTION_PARAMETERS, char *sort, int use_a
     RedisSock *redis_sock;
     char *key = NULL, *pattern = NULL, *get = NULL, *cmd;
     int key_len, pattern_len = -1, get_len = -1, cmd_len, response_len;
-    long start = -1, end = -1;
+    long limit_start = -1, limit_count = -1;
 
     long use_pound = 0;
 
@@ -2099,7 +2099,7 @@ PHPAPI void generic_sort_cmd(INTERNAL_FUNCTION_PARAMETERS, char *sort, int use_a
     if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os|ssllb",
                                      &object, redis_ce,
                                      &key, &key_len, &pattern, &pattern_len,
-                                     &get, &get_len, &start, &end, &use_pound) == FAILURE) {
+                                     &get, &get_len, &limit_start, &limit_count, &use_pound) == FAILURE) {
         RETURN_FALSE;
     }
 
@@ -2110,8 +2110,8 @@ PHPAPI void generic_sort_cmd(INTERNAL_FUNCTION_PARAMETERS, char *sort, int use_a
         RETURN_FALSE;
     }
 
-    if(start >= 0 && end >= start) {
-        redis_cmd_format(&limit, "LIMIT %d %d", start, end);
+    if(limit_start >= 0 && limit_count >= 0) {
+        redis_cmd_format(&limit, "LIMIT %d %d", limit_start, limit_count);
     }
 
     char format[] = "SORT "
@@ -2135,8 +2135,8 @@ PHPAPI void generic_sort_cmd(INTERNAL_FUNCTION_PARAMETERS, char *sort, int use_a
         get_arg = get;
         get_pound = use_pound ? "#" : "";
     }
-    if(start >= 0 && end >= start) {
-        spprintf(&limit, 0, "LIMIT %ld %ld", start, end);
+    if(limit_start >= 0 && limit_count >= 0) {
+        spprintf(&limit, 0, "LIMIT %ld %ld", limit_start, limit_count);
     }
     if(use_alpha) {
         alpha = "ALPHA";
