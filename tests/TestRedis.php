@@ -1463,6 +1463,19 @@ class Redis_Test extends PHPUnit_Framework_TestCase
 	$this->assertTrue( 2 === $this->redis->zInter('keyI', array('key1', 'key2', 'key3'), array(1, 5, 1), 'max'));
 	$this->assertTrue(array('val3', 'val1') === $this->redis->zRange('keyI', 0, -1));	
 
+	// zrevrange
+	$this->redis->delete('z');
+	$this->redis->zadd('z', 1, 'one');
+	$this->redis->zadd('z', 2, 'two');
+	$this->redis->zadd('z', 5, 'five');
+	$this->redis->zadd('z', 10, 'ten');
+
+	$this->assertTrue(array('ten') === $this->redis->zReverseRange('z', 0, 0));
+	$this->assertTrue(array('ten', 'five', 'two') === $this->redis->zReverseRange('z', 0, 2));
+	$this->assertTrue(array('five', 'two') === $this->redis->zReverseRange('z', 1, 2));
+	$this->assertTrue(array('five') === $this->redis->zReverseRange('z', 1, 1));
+	$this->assertTrue(array() === $this->redis->zReverseRange('z', 1, 0));
+	$this->assertTrue(array() === $this->redis->zReverseRange('z', -1, 0));
 
     }
 

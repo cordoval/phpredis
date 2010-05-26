@@ -129,6 +129,8 @@ static zend_function_entry redis_functions[] = {
      PHP_MALIAS(Redis, sGetMembers, sMembers, NULL, ZEND_ACC_PUBLIC)
      PHP_MALIAS(Redis, mget, getMultiple, NULL, ZEND_ACC_PUBLIC)
      PHP_MALIAS(Redis, expire, setTimeout, NULL, ZEND_ACC_PUBLIC)
+     PHP_MALIAS(Redis, zunionstore, zUnion, NULL, ZEND_ACC_PUBLIC)
+     PHP_MALIAS(Redis, zinterstore, zInter, NULL, ZEND_ACC_PUBLIC)
 
      PHP_MALIAS(Redis, zRemove, zDelete, NULL, ZEND_ACC_PUBLIC)
      PHP_MALIAS(Redis, zRemoveRangeByScore, zDeleteRangeByScore, NULL, ZEND_ACC_PUBLIC)
@@ -1277,7 +1279,8 @@ PHP_METHOD(Redis, getKeys)
         RETURN_FALSE;
     }
 
-    cmd_len = spprintf(&cmd, 0, "KEYS %s\r\n", pattern);
+    cmd_len = redis_cmd_format(&cmd, "*2\r\n$4\r\nKEYS\r\n$%d\r\n%s\r\n"
+                    , pattern_len, pattern, pattern_len);
 
     if (redis_sock_write(redis_sock, cmd, cmd_len) < 0) {
         efree(cmd);
@@ -1285,49 +1288,9 @@ PHP_METHOD(Redis, getKeys)
     }
     efree(cmd);
 
-    /* two cases:
-     * 1 - old versions of redis (before 1st of March 2010): one space-separated line
-     * 2 - newer versions of redis: multi-bulk data.
-     *
-     * The following code supports both.
-     **/
-
-    /* prepare for php_explode */
-    array_init(return_value);
-
-    /* read a first line. */
-    redis_check_eof(redis_sock TSRMLS_CC);
-    php_stream_gets(redis_sock->stream, inbuf, 1024);
-
-    switch(inbuf[0]) { /* check what character it starts with. */
-        case '$':
-            response_len = atoi(inbuf + 1);
-            response = redis_sock_read_bulk_reply(redis_sock, response_len);
-            if(!response_len) { /* empty array in case of an empty string */
-                efree(response);
-                return;
-            }
-            zval *delimiter; /* delimiter */
-            MAKE_STD_ZVAL(delimiter);
-            ZVAL_STRING(delimiter, " ", 1);
-
-            zval *keys; /* keys */
-            MAKE_STD_ZVAL(keys);
-            ZVAL_STRING(keys, response, 1);
-            php_explode(delimiter, keys, return_value, -1);
-
-            /* free memory */
-            zval_dtor(keys);
-            efree(keys);
-            zval_dtor(delimiter);
-            efree(delimiter);
-            break;
-
-        case '*':
-            count = atoi(inbuf + 1);
-            redis_sock_read_multibulk_reply_loop(INTERNAL_FUNCTION_PARAM_PASSTHRU,
-                            redis_sock, return_value, count);
-            break;
+    if (redis_sock_read_multibulk_reply(INTERNAL_FUNCTION_PARAM_PASSTHRU,
+                                        redis_sock TSRMLS_CC) < 0) {
+        RETURN_FALSE;
     }
 }
 /* }}} */
@@ -3171,12 +3134,12 @@ PHPAPI void generic_z_command(INTERNAL_FUNCTION_PARAMETERS, char *command TSRMLS
 
 /* zInter */
 PHP_METHOD(Redis, zInter) {						
-	generic_z_command(INTERNAL_FUNCTION_PARAM_PASSTHRU, "zInter" TSRMLS_CC);
+	generic_z_command(INTERNAL_FUNCTION_PARAM_PASSTHRU, "ZINTERSTORE" TSRMLS_CC);
 }
 
 /* zUnion */
 PHP_METHOD(Redis, zUnion) {
-	generic_z_command(INTERNAL_FUNCTION_PARAM_PASSTHRU, "zUnion" TSRMLS_CC);
+	generic_z_command(INTERNAL_FUNCTION_PARAM_PASSTHRU, "ZUNIONSTORE" TSRMLS_CC);
 }
 
 /* hashes */
