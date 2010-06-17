@@ -257,6 +257,13 @@ class Redis_Test extends PHPUnit_Framework_TestCase
 	    $this->assertTrue($this->redis->get('key') === '42');
     }
 
+    public function testSetEx() {
+
+	    $this->redis->delete('key');
+	    $this->assertTrue($this->redis->setex('key', 7, 'hello'));
+	    $this->assertTrue($this->redis->ttl('key') === 7);
+    }
+
     public function testAdd()
     {
         $key = 'key' . rand();
