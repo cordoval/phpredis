@@ -123,6 +123,8 @@ static zend_function_entry redis_functions[] = {
      PHP_ME(Redis, hGetAll, NULL, ZEND_ACC_PUBLIC)
      PHP_ME(Redis, hExists, NULL, ZEND_ACC_PUBLIC)
      PHP_ME(Redis, hIncrBy, NULL, ZEND_ACC_PUBLIC)
+     PHP_ME(Redis, hMGet, NULL, ZEND_ACC_PUBLIC)
+     PHP_ME(Redis, hMSet, NULL, ZEND_ACC_PUBLIC)
 
      /* aliases */
      PHP_MALIAS(Redis, open, connect, NULL, ZEND_ACC_PUBLIC)
@@ -3437,11 +3439,258 @@ PHP_METHOD(Redis, hGetAll) {
     array_zip_values_and_scores(INTERNAL_FUNCTION_PARAM_PASSTHRU, 0);
 }
 
+PHP_METHOD(Redis, hMGet) {
+
+    zval *object;
+    RedisSock *redis_sock;
+    char *key = NULL, *cmd;
+    int key_len, cmd_len;
+    zval *z_array;
+    int nb_fields;
+
+    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osa",
+                                     &object, redis_ce,
+                                     &key, &key_len, &z_array) == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    if (redis_sock_get(object, &redis_sock TSRMLS_CC) < 0) {
+        RETURN_FALSE;
+    }
+    nb_fields = zend_hash_num_elements(Z_ARRVAL_P(z_array));
+
+    if( nb_fields == 0) {
+        RETURN_FALSE;
+    }
+
+    cmd_len = redis_cmd_format(&cmd,
+                    "*%d\r\n"
+                    "$%d\r\n"
+
+                    "%s\r\n"
+
+                    "$%d\r\n"   /* key */
+                    "%s"
+                    ,
+                    nb_fields + 2,
+                    sizeof("HMGET")-1,
+                    "HMGET", sizeof("HMGET")-1,
+                    key_len, 
+                    key, key_len);
+
+    char *old_cmd = NULL;	
+
+    zval **data;
+    HashTable *arr_hash;
+    HashPosition pointer;
+
+    arr_hash = Z_ARRVAL_P(z_array);
+
+    for (zend_hash_internal_pointer_reset_ex(arr_hash, &pointer);
+         zend_hash_get_current_data_ex(arr_hash, (void**) &data,
+                                       &pointer) == SUCCESS;
+         zend_hash_move_forward_ex(arr_hash, &pointer)) {
+
+        if (Z_TYPE_PP(data) == IS_STRING) {
+            char *old_cmd = NULL;
+            if(cmd) {
+                old_cmd = cmd;
+            }
+            cmd_len = spprintf(&cmd, 0, "%s\r\n$%d\r\n%s", cmd, Z_STRLEN_PP(data), Z_STRVAL_PP(data));
+            if(old_cmd) {
+                efree(old_cmd);
+            }
+        }
+    }
+
+	old_cmd = cmd;
+    cmd_len = spprintf(&cmd, 0, "%s\r\n", cmd);
+	efree(old_cmd);
+
+    if (redis_sock_write(redis_sock, cmd, cmd_len) < 0) {
+        efree(cmd);
+        RETURN_FALSE;
+    }
+    efree(cmd);
+
+    if (redis_sock_read_multibulk_reply(INTERNAL_FUNCTION_PARAM_PASSTHRU,
+                                        redis_sock TSRMLS_CC) < 0) {
+        RETURN_FALSE;
+    }	
+	array_zip_keys_and_values(INTERNAL_FUNCTION_PARAM_PASSTHRU, 0, z_array);	
+}
+
+PHPAPI void array_zip_keys_and_values(INTERNAL_FUNCTION_PARAMETERS, int use_atof, zval *z_array TSRMLS_DC) {
+
+    zval *z_ret;
+    MAKE_STD_ZVAL(z_ret);
+
+    /* z_ret contain values */
+    /* z_array contains keys */
+    *z_ret = *return_value; /* copy */
+
+    array_init(return_value);
+    HashTable *keytable = Z_ARRVAL_P(z_ret), *keyHash = Z_ARRVAL_P(z_array);
+
+    for(zend_hash_internal_pointer_reset(keytable);
+        zend_hash_has_more_elements(keytable) == SUCCESS;
+        zend_hash_move_forward(keytable)) {
+
+		char *tablekey;
+		int tablekey_len;
+		unsigned long idx;
+		int type;
+		zval **z_value_pp;
+
+	type = zend_hash_get_current_key_ex(keytable, &tablekey, &tablekey_len, &idx, 0, NULL);
+	zend_hash_get_current_key(keytable, &tablekey, &idx, 0);
+			
+		if(type == HASH_KEY_IS_LONG) {
+
+		if(zend_hash_get_current_data(keytable, (void**)&z_value_pp) == FAILURE) {
+			  continue; 	//never happen !
+        	}
+			zval **pData;
+			zend_hash_index_find(keyHash, idx, (void **)&pData);
+
+			switch(Z_TYPE_PP(z_value_pp)) {
+				case IS_BOOL :
+					add_assoc_bool(return_value, Z_STRVAL_PP(pData), Z_BVAL_PP(z_value_pp));
+					break;
+				case IS_LONG :
+					add_assoc_long(return_value, Z_STRVAL_PP(pData), Z_LONG_PP(z_value_pp));
+					break;
+				case IS_STRING :
+					add_assoc_string(return_value, Z_STRVAL_PP(pData), Z_STRVAL_PP(z_value_pp), 0);
+					break;
+				/* NULL, ARRAY, DOUBLE, ...*/
+			}
+		} 
+	}
+	efree(z_ret);
+}
+
+PHP_METHOD(Redis, hMSet) {
+
+    zval *object;
+    RedisSock *redis_sock;
+    char *key = NULL, *cmd;
+    int key_len, cmd_len;
+	zval *z_array;
+	
+    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osa",
+                                     &object, redis_ce,
+                                     &key, &key_len, &z_array) == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    if (redis_sock_get(object, &redis_sock TSRMLS_CC) < 0) {
+        RETURN_FALSE;
+    }
+    int nb_fields = zend_hash_num_elements(Z_ARRVAL_P(z_array));
+
+    if( nb_fields == 0) {
+        RETURN_FALSE;
+    }
+		
+    cmd_len = redis_cmd_format(&cmd,
+                    "*%d\r\n"
+                    "$%d\r\n"
+
+                    "%s\r\n"
+
+                    "$%d\r\n"   /* key */
+                    "%s"
+                    ,
+                    nb_fields * 2 + 2,
+                    sizeof("HMSET")-1,
+                    "HMSET", sizeof("HMSET")-1,
+                    key_len, 
+                    key, key_len);
+
+    char *cmd2 = NULL, *old_cmd = NULL;	
+
+    zval **data;
+    HashTable *arr_hash;
+    HashPosition pointer;
+
+    arr_hash = Z_ARRVAL_P(z_array);
+
+    for (zend_hash_internal_pointer_reset_ex(arr_hash, &pointer);
+         zend_hash_get_current_data_ex(arr_hash, (void**) &data,
+                                       &pointer) == SUCCESS;
+         zend_hash_move_forward_ex(arr_hash, &pointer)) {
+
+		char *tablekey;
+		int tablekey_len;
+		unsigned long idx;
+		int type;
+		zval **z_value_pp;
+		type = zend_hash_get_current_key_ex(arr_hash, &tablekey, &tablekey_len, &idx, 0, NULL);
+
+		char *double_str = "";
+		int double_len;
+
+		if(type != HASH_KEY_IS_STRING) {
+			if(cmd) efree(cmd);
+			RETURN_FALSE;
+		}
+
+		if(Z_TYPE_PP(data) == IS_NULL) {
+			char *old_cmd = NULL;
+			if(cmd) {
+				old_cmd = cmd;
+			}
+
+			cmd_len = spprintf(&cmd, 0, "%s\r\n$%d\r\n%s\r\n$0\r\n", cmd, (tablekey_len - 1), tablekey);
+			if(old_cmd) {
+				efree(old_cmd);
+			}
+		}
+
+
+		if(Z_TYPE_PP(data) == IS_LONG) {
+			char *old_cmd = NULL;
+			if(cmd) {
+				old_cmd = cmd;
+			}
+			double_len = spprintf(&double_str, 0, "%ld", Z_LVAL_PP(data));
+			cmd_len = spprintf(&cmd, 0, "%s\r\n$%d\r\n%s\r\n$%d\r\n%s", cmd, (tablekey_len - 1), tablekey, double_len, double_str);
+			efree(double_str);
+			if(old_cmd) {
+				efree(old_cmd);
+			}
+		}
+
+		if (Z_TYPE_PP(data) == IS_STRING) {
+			char *old_cmd = NULL;
+			if(cmd) {
+				old_cmd = cmd;
+			}
+			if(type == HASH_KEY_IS_STRING) {
+				cmd_len = spprintf(&cmd, 0, "%s\r\n$%d\r\n%s\r\n$%d\r\n%s", cmd, (tablekey_len - 1), tablekey, Z_STRLEN_PP(data), Z_STRVAL_PP(data));
+				if(old_cmd) {
+					efree(old_cmd);
+				}
+			}
+		}
+		zend_hash_move_forward(arr_hash);
+    }
+    cmd_len = spprintf(&cmd, 0, "%s\r\n", cmd);
+    if (redis_sock_write(redis_sock, cmd, cmd_len) < 0) {
+        efree(cmd);
+        RETURN_FALSE;
+    }
+    efree(cmd);
+    redis_boolean_response(INTERNAL_FUNCTION_PARAM_PASSTHRU, redis_sock TSRMLS_CC);
+}
+
 PHPAPI void array_zip_values_and_scores(INTERNAL_FUNCTION_PARAMETERS, int use_atof TSRMLS_DC) {
 
     zval *z_ret;
     MAKE_STD_ZVAL(z_ret);
     *z_ret = *return_value; /* copy */
+		
     array_init(return_value);
 
     HashTable *keytable = Z_ARRVAL_P(z_ret);
@@ -3456,10 +3705,10 @@ PHPAPI void array_zip_values_and_scores(INTERNAL_FUNCTION_PARAMETERS, int use_at
         zval **z_value_pp;
 
         type = zend_hash_get_current_key_ex(keytable, &tablekey, &tablekey_len, &idx, 0, NULL);
+
         if(zend_hash_get_current_data(keytable, (void**)&z_value_pp) == FAILURE) {
             continue; 	/* this should never happen, according to the PHP people. */
         }
-
         // get current value, a key
         hkey = Z_STRVAL_PP(z_value_pp);
         hkey_len = Z_STRLEN_PP(z_value_pp);
@@ -3485,7 +3734,6 @@ PHPAPI void array_zip_values_and_scores(INTERNAL_FUNCTION_PARAMETERS, int use_at
     }
     zval_dtor(z_ret);
     efree(z_ret);
-
 }
 
 PHP_METHOD(Redis, hIncrBy)

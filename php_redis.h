@@ -105,6 +105,9 @@ PHP_METHOD(Redis, hVals);
 PHP_METHOD(Redis, hGetAll);
 PHP_METHOD(Redis, hExists);
 PHP_METHOD(Redis, hIncrBy);
+PHP_METHOD(Redis, hMGet);
+PHP_METHOD(Redis, hMSet);
+
 
 #ifdef PHP_WIN32
 #define PHP_REDIS_API __declspec(dllexport)
@@ -173,6 +176,7 @@ PHPAPI void generic_empty_cmd(INTERNAL_FUNCTION_PARAMETERS, char *cmd, int cmd_l
 PHPAPI void generic_empty_long_cmd(INTERNAL_FUNCTION_PARAMETERS, char *cmd, int cmd_len TSRMLS_DC);
 
 PHPAPI void array_zip_values_and_scores(INTERNAL_FUNCTION_PARAMETERS, int use_atof TSRMLS_DC);
+PHPAPI void array_zip_keys_and_values(INTERNAL_FUNCTION_PARAMETERS, int use_atof, zval *z_array TSRMLS_DC);
 
 /* }}} */
 
