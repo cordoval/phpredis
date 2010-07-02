@@ -1547,9 +1547,6 @@ class Redis_Test extends PHPUnit_Framework_TestCase
 		$this->redis->hset("h1", "field1", "value1");
 		$this->redis->hset("h1", "field2", "value2");
 
-		//bug#1
-		//var_dump($this->redis->hGetAll());
-
 		$this->assertTrue(array('field1'=> 'value1', 'field2'=>'value2') === $this->redis->hGetAll('h1'));
 		$this->assertTrue(array('field1'=> 'value1', 'field2'=>'value2') === $this->redis->hMGet('h1', array('field1', 'field2')));
 		$this->assertTrue(array('field1'=> 'value1') === $this->redis->hMGet('h1', array('field1')));
