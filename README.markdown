@@ -1604,3 +1604,34 @@ $redis->delete('h');
 $redis->hIncrBy('h', 2.5, 'x'); /* returns 2.5: h[x] = 2.5 now. */
 $redis->zIncrBy('h', 1, 'x'); /* h[x] ← 2.5 + 1. Returns 3.5 */
 </pre>
+
+## hMGet
+##### Description
+Retirieve the values associated to the specified fields in the hash.
+##### Parameters
+*key*
+*memberKeyArray*
+##### Return value
+*Array* An array of elements, the values of the specified fields in the hash.
+##### Examples
+<pre>
+$redis->delete('h');
+$redis->hSet('h', 'field1', 'value1');
+$redis->hSet('h', 'field2', 'value2');
+$redis->hmGet('h', array('field1', 'field2')); /* returns array('field1' => 'value1', 'field2' => 'value2') */
+</pre>
+
+## hMSet
+##### Description
+Set the values associated to the specified field in the hash.
+##### Parameters
+*key*
+*memberKeyArray*
+##### Return value
+*BOOL*
+##### Examples
+<pre>
+$redis->delete('h');
+$redis->hMSet('h', array('field1' => 'value1', 'field2' => 'value2'));
+$redis->hmGet('h', array('field1', 'field2')); /* returns array('field1' => 'value') */
+</pre>

@@ -12,8 +12,8 @@ class Redis_Test extends PHPUnit_Framework_TestCase
 
     public function setUp()
     {
-	$this->redis = new Redis();
-	$this->redis->connect('127.0.0.1', 6379);
+	  $this->redis = new Redis();
+	  $this->redis->connect('127.0.0.1', 6379);
 
 	// uncomment the following if you want to use authentication
 	// $this->assertTrue($this->redis->auth('foobared'));
@@ -21,6 +21,7 @@ class Redis_Test extends PHPUnit_Framework_TestCase
 
     public function tearDown()
     {
+
         $this->redis->close();
         unset($this->redis);
     }
@@ -1395,17 +1396,17 @@ class Redis_Test extends PHPUnit_Framework_TestCase
 	$this->assertTrue(4 === $this->redis->zUnion('keyU', array('key1', 'key3')));
 	$this->assertTrue(array('val0', 'val1', 'val4', 'val5') === $this->redis->zRange('keyU', 0, -1));
 
-	/* Union on non existing keys */
+	// Union on non existing keys
 	$this->redis->delete('keyU');
 	$this->assertTrue(0 === $this->redis->zUnion('keyU', array('X', 'Y')));
 	$this->assertTrue(array() === $this->redis->zRange('keyU', 0, -1));
 
-	/* !Exist U Exist */
+	// !Exist U Exist
 	$this->redis->delete('keyU');
 	$this->assertTrue(2 === $this->redis->zUnion('keyU', array('key1', 'X')));
 	$this->assertTrue($this->redis->zRange('key1', 0, -1) === $this->redis->zRange('keyU', 0, -1));
 
-	/* test weighted zUnion*/
+	// test weighted zUnion
 	$this->redis->delete('keyZ');
 	$this->assertTrue(4 === $this->redis->zUnion('keyZ', array('key1', 'key2'), array(1, 1)));
 	$this->assertTrue(array('val0', 'val1', 'val2', 'val3') === $this->redis->zRange('keyZ', 0, -1));
@@ -1418,7 +1419,7 @@ class Redis_Test extends PHPUnit_Framework_TestCase
 	$this->redis->delete('key2');
 	$this->redis->delete('key3');
 
-	/* zInter */
+	// zInter
 
 	$this->redis->zAdd('key1', 0, 'val0');
 	$this->redis->zAdd('key1', 1, 'val1');
@@ -1434,16 +1435,16 @@ class Redis_Test extends PHPUnit_Framework_TestCase
 	$this->assertTrue(2 === $this->redis->zInter('keyI', array('key1', 'key2')));
 	$this->assertTrue(array('val1', 'val3') === $this->redis->zRange('keyI', 0, -1));
 
-	/* Union on non existing keys */
+	// Union on non existing keys
 	$this->assertTrue(0 === $this->redis->zInter('keyX', array('X', 'Y')));
 	$this->assertTrue(array() === $this->redis->zRange('keyX', 0, -1));
 
-	/* !Exist U Exist */
+	// !Exist U Exist
 	$this->assertTrue(0 === $this->redis->zInter('keyY', array('key1', 'X')));
 	$this->assertTrue(array() === $this->redis->zRange('keyY', 0, -1));
 
 
-	/* test weighted zInter*/
+	// test weighted zInter
 	$this->redis->delete('key1');
 	$this->redis->delete('key2');
 	$this->redis->delete('key3');
@@ -1533,15 +1534,30 @@ class Redis_Test extends PHPUnit_Framework_TestCase
 	$this->assertTrue(FALSE === $this->redis->hExists('h', 'x'));
 
 	// hIncrBy
-	/*
-	$this->redis->delete('h');
-	$this->assertTrue(2.5 === $this->redis->hIncrBy('h', 2.5, 'x'));
-	$this->assertTrue(3.5 === $this->redis->hIncrBy('h', 1, 'x'));
+	
+// 	$this->redis->delete('h');
+// 	$this->assertTrue(2.5 === $this->redis->hIncrBy('h', 2.5, 'x'));
+// 	$this->assertTrue(3.5 === $this->redis->hIncrBy('h', 1, 'x'));
 
-	$this->redis->hSet('h', 'y', 'not-a-number');
-	$this->assertTrue(FALSE === $this->redis->hIncrBy('h', 1, 'y'));
-	*/
+// 	$this->redis->hSet('h', 'y', 'not-a-number');
+// 	$this->assertTrue(FALSE === $this->redis->hIncrBy('h', 1, 'y'));
 
+		$this->redis->delete('h1');
+		//hMGet, hMSet
+		$this->redis->hset("h1", "field1", "value1");
+		$this->redis->hset("h1", "field2", "value2");
+
+		//bug#1
+		//var_dump($this->redis->hGetAll());
+
+		$this->assertTrue(array('field1'=> 'value1', 'field2'=>'value2') === $this->redis->hGetAll('h1'));
+		$this->assertTrue(array('field1'=> 'value1', 'field2'=>'value2') === $this->redis->hMGet('h1', array('field1', 'field2')));
+		$this->assertTrue(array('field1'=> 'value1') === $this->redis->hMGet('h1', array('field1')));
+		$this->assertTrue(FALSE === $this->redis->hMGet('h1', array()));	
+		$this->assertTrue(TRUE === $this->redis->hMSet('h1', array('field3'=> 'value3')));
+		$this->assertTrue(array('field1' => 'value1', 'field2' => 'value2', 'field3' => 'value3') === $this->redis->hGetAll('h1'));
+		$this->assertTrue(TRUE === $this->redis->hMSet('h1', array('field3'=> 'value4')));
+		$this->assertTrue(array('field1' => 'value1', 'field2' => 'value2', 'field3' => 'value4') === $this->redis->hGetAll('h1'));		
     }
 
 }
