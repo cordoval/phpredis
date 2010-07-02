@@ -3470,7 +3470,7 @@ PHP_METHOD(Redis, hMGet) {
                     "%s\r\n"
 
                     "$%d\r\n"   /* key */
-                    "%s"
+                    "%s\r\n"
                     ,
                     nb_fields + 2,
                     sizeof("HMGET")-1,
@@ -3492,20 +3492,14 @@ PHP_METHOD(Redis, hMGet) {
          zend_hash_move_forward_ex(arr_hash, &pointer)) {
 
         if (Z_TYPE_PP(data) == IS_STRING) {
-            char *old_cmd = NULL;
-            if(cmd) {
-                old_cmd = cmd;
-            }
-            cmd_len = spprintf(&cmd, 0, "%s\r\n$%d\r\n%s", cmd, Z_STRLEN_PP(data), Z_STRVAL_PP(data));
-            if(old_cmd) {
-                efree(old_cmd);
-            }
+            char *old_cmd = cmd;
+		    cmd_len = redis_cmd_format(&cmd, "%s$%d\r\n%s\r\n",
+										cmd, cmd_len,
+										Z_STRLEN_PP(data), 
+										Z_STRVAL_PP(data), Z_STRLEN_PP(data));
+            efree(old_cmd);
         }
     }
-
-	old_cmd = cmd;
-    cmd_len = spprintf(&cmd, 0, "%s\r\n", cmd);
-	efree(old_cmd);
 
     if (redis_sock_write(redis_sock, cmd, cmd_len) < 0) {
         efree(cmd);
@@ -3561,12 +3555,13 @@ PHPAPI void array_zip_keys_and_values(INTERNAL_FUNCTION_PARAMETERS, int use_atof
 					add_assoc_long(return_value, Z_STRVAL_PP(pData), Z_LONG_PP(z_value_pp));
 					break;
 				case IS_STRING :
-					add_assoc_string(return_value, Z_STRVAL_PP(pData), Z_STRVAL_PP(z_value_pp), 0);
+					add_assoc_string(return_value, Z_STRVAL_PP(pData), Z_STRVAL_PP(z_value_pp), 1);
 					break;
 				/* NULL, ARRAY, DOUBLE, ...*/
 			}
 		} 
 	}
+	zval_dtor(z_ret);
 	efree(z_ret);
 }
 
@@ -3600,7 +3595,7 @@ PHP_METHOD(Redis, hMSet) {
                     "%s\r\n"
 
                     "$%d\r\n"   /* key */
-                    "%s"
+                    "%s\r\n"
                     ,
                     nb_fields * 2 + 2,
                     sizeof("HMSET")-1,
@@ -3637,46 +3632,47 @@ PHP_METHOD(Redis, hMSet) {
 		}
 
 		if(Z_TYPE_PP(data) == IS_NULL) {
-			char *old_cmd = NULL;
-			if(cmd) {
-				old_cmd = cmd;
-			}
+			char *old_cmd = cmd;
 
-			cmd_len = spprintf(&cmd, 0, "%s\r\n$%d\r\n%s\r\n$0\r\n", cmd, (tablekey_len - 1), tablekey);
-			if(old_cmd) {
-				efree(old_cmd);
-			}
+			cmd_len = redis_cmd_format(&cmd, "%s$%d\r\n%s\r\n$0\r\n\r\n", 
+										cmd, cmd_len,
+										(tablekey_len - 1), 
+										tablekey, (tablekey_len - 1)
+									);
+			efree(old_cmd);
 		}
 
 
 		if(Z_TYPE_PP(data) == IS_LONG) {
-			char *old_cmd = NULL;
-			if(cmd) {
-				old_cmd = cmd;
-			}
+			char *old_cmd = cmd;
 			double_len = spprintf(&double_str, 0, "%ld", Z_LVAL_PP(data));
-			cmd_len = spprintf(&cmd, 0, "%s\r\n$%d\r\n%s\r\n$%d\r\n%s", cmd, (tablekey_len - 1), tablekey, double_len, double_str);
+			cmd_len = redis_cmd_format(&cmd, "%s$%d\r\n%s\r\n$%d\r\n%s\r\n", 
+										cmd, cmd_len,
+										(tablekey_len - 1), 
+										tablekey, tablekey_len,
+										double_len, 
+										double_str, double_len
+									);
 			efree(double_str);
-			if(old_cmd) {
-				efree(old_cmd);
-			}
+			efree(old_cmd);
 		}
 
 		if (Z_TYPE_PP(data) == IS_STRING) {
-			char *old_cmd = NULL;
-			if(cmd) {
-				old_cmd = cmd;
-			}
+			char *old_cmd = cmd;
 			if(type == HASH_KEY_IS_STRING) {
-				cmd_len = spprintf(&cmd, 0, "%s\r\n$%d\r\n%s\r\n$%d\r\n%s", cmd, (tablekey_len - 1), tablekey, Z_STRLEN_PP(data), Z_STRVAL_PP(data));
-				if(old_cmd) {
-					efree(old_cmd);
-				}
+				cmd_len = redis_cmd_format(&cmd, "%s$%d\r\n%s\r\n$%d\r\n%s\r\n", 
+											cmd, cmd_len,
+											(tablekey_len - 1), 
+											tablekey, (tablekey_len - 1), 
+											Z_STRLEN_PP(data), 
+											Z_STRVAL_PP(data), Z_STRLEN_PP(data)
+										);
+				efree(old_cmd);
 			}
 		}
 		zend_hash_move_forward(arr_hash);
     }
-    cmd_len = spprintf(&cmd, 0, "%s\r\n", cmd);
+
     if (redis_sock_write(redis_sock, cmd, cmd_len) < 0) {
         efree(cmd);
         RETURN_FALSE;
